@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>个人 Agent 记忆系统</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#050B14;overflow:hidden;font-family:'IBM Plex Sans','PingFang SC',sans-serif;color:#E2E8F0}
+
+/* ══ Deck ══ */
+.deck{position:relative;width:100%;height:100%;overflow:hidden}
+.slide{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity 0.4s ease}
+.slide.active{opacity:1;pointer-events:all}
+
+/* ══ Nav ══ */
+.nav{
+  position:fixed;bottom:2vh;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:1.2vw;
+  background:rgba(2,8,16,0.85);border:1px solid rgba(255,255,255,0.08);
+  backdrop-filter:blur(12px);padding:0.6vh 1.4vw;border-radius:999px;z-index:1000;
+}
+.nav-btn{
+  width:2.4vw;height:2.4vw;border-radius:50%;border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.04);color:#64748B;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:0.9vw;
+  transition:all 0.2s;user-select:none;
+}
+.nav-btn:hover{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#22C55E}
+.nav-dots{display:flex;gap:0.5vw;align-items:center}
+.nav-dot{width:0.5vw;height:0.5vw;border-radius:50%;background:rgba(255,255,255,0.12);cursor:pointer;transition:all 0.2s}
+.nav-dot.on{background:#22C55E;box-shadow:0 0 6px #22C55E;width:1.4vw;border-radius:3px}
+.nav-count{font-family:'JetBrains Mono',monospace;font-size:0.7vw;color:#334155;min-width:3vw;text-align:center}
+
+/* ══ Shared bg ══ */
+.bg{position:absolute;inset:0;pointer-events:none}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(34,197,94,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,0.03) 1px,transparent 1px);background-size:5vw 5vw}
+.top-bar{position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#22C55E,#4ADE80 40%,#6366F1 70%,#8B5CF6)}
+.glow-l{position:absolute;width:55vw;height:100%;background:radial-gradient(ellipse at left center,rgba(34,197,94,0.08) 0%,transparent 60%)}
+.glow-r{position:absolute;width:30vw;height:60%;bottom:-10%;right:-5%;background:radial-gradient(circle,rgba(99,102,241,0.08) 0%,transparent 65%)}
+.glow-c{position:absolute;width:50vw;height:80vh;top:10%;left:25%;background:radial-gradient(ellipse,rgba(34,197,94,0.07) 0%,transparent 65%)}
+
+/* ══ Typography ══ */
+.page-id{position:absolute;top:1.8vw;left:3vw;font-family:'JetBrains Mono',monospace;font-size:0.72vw;color:#1E3A2A;z-index:20}
+.page-id span{color:#22C55E}
+.tag{font-family:'JetBrains Mono',monospace;font-size:0.72vw;letter-spacing:0.14em;color:#22C55E;margin-bottom:0.8vw}
+.h-main{font-size:3.4vw;font-weight:900;letter-spacing:-0.02em;line-height:1.05;color:#F8FAFC;margin-bottom:0.5vw}
+.h-main em{font-style:normal;background:linear-gradient(120deg,#22C55E,#4ADE80);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.desc{font-size:0.92vw;color:#64748B;line-height:1.7;margin-bottom:1.6vw}
+
+/* ══ Code card ══ */
+.code-card{background:#020810;border:1px solid rgba(255,255,255,0.06);border-radius:0.7vw;overflow:hidden}
+.code-card.green{border-color:rgba(34,197,94,0.2)}
+.c-head{padding:0.6vw 1vw;background:rgba(255,255,255,0.02);border-bottom:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between}
+.c-label{font-family:'JetBrains Mono',monospace;font-size:0.65vw;color:#334155}
+.c-label.g{color:#22C55E}
+.dots{display:flex;gap:0.4vw}
+.dot{width:0.65vw;height:0.65vw;border-radius:50%}
+.dot-r{background:#FF5F57}.dot-y{background:#FEBC2E}.dot-g{background:#28C840}
+.c-body{padding:0.9vw 1.3vw;font-family:'JetBrains Mono',monospace;font-size:0.82vw;line-height:1.85}
+.ln{color:#1E3A2A;margin-right:0.8vw;font-size:0.7vw;user-select:none}
+.kw{color:#6366F1}.fn{color:#22C55E}.st{color:#FB923C}.cm{color:#1E3A2A;font-style:italic}.va{color:#E2E8F0}.prop{color:#93C5FD}
+.hl{background:rgba(34,197,94,0.06);border-left:2px solid #22C55E;display:block;padding-left:0.4vw;margin-left:-0.4vw;border-radius:0 2px 2px 0}
+
+/* ══ Badges / tags ══ */
+.chip{display:inline-flex;align-items:center;gap:0.6vw;font-family:'JetBrains Mono',monospace;font-size:0.82vw;letter-spacing:0.1em;color:#22C55E;margin-bottom:1.4vw}
+.chip-dot{width:0.5vw;height:0.5vw;background:#22C55E;border-radius:50%;box-shadow:0 0 6px #22C55E;animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 6px #22C55E}50%{opacity:0.3;box-shadow:none}}
+.badge-g{font-family:'JetBrains Mono',monospace;font-size:0.62vw;font-weight:700;padding:0.2vw 0.5vw;border-radius:0.3vw;background:rgba(34,197,94,0.1);color:#22C55E;border:1px solid rgba(34,197,94,0.2);letter-spacing:0.08em;display:inline-block}
+.badge-i{font-family:'JetBrains Mono',monospace;font-size:0.62vw;font-weight:700;padding:0.2vw 0.5vw;border-radius:0.3vw;background:rgba(99,102,241,0.12);color:#818CF8;border:1px solid rgba(99,102,241,0.25);display:inline-block}
+.badge-o{font-family:'JetBrains Mono',monospace;font-size:0.62vw;font-weight:700;padding:0.2vw 0.5vw;border-radius:0.3vw;background:rgba(251,146,60,0.1);color:#FB923C;border:1px solid rgba(251,146,60,0.25);display:inline-block}
+.badge-dim{font-family:'JetBrains Mono',monospace;font-size:0.62vw;font-weight:700;padding:0.2vw 0.5vw;border-radius:0.3vw;background:rgba(255,255,255,0.04);color:#475569;border:1px solid rgba(255,255,255,0.06);display:inline-block}
+
+/* ══ Table ══ */
+.g-table{width:100%;border-collapse:collapse;font-size:0.82vw}
+.g-table th{text-align:left;padding:0.7vw 1vw;font-family:'JetBrains Mono',monospace;font-size:0.62vw;letter-spacing:0.14em;color:#22C55E;border-bottom:1px solid rgba(34,197,94,0.15);text-transform:uppercase}
+.g-table td{padding:0.9vw 1vw;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle}
+.g-table tr:hover td{background:rgba(34,197,94,0.03)}
+.g-table .file{font-family:'JetBrains Mono',monospace;color:#FB923C;font-size:0.78vw}
+
+/* ══ Info card row ══ */
+.info-row{display:flex;align-items:flex-start;gap:1vw;padding:0.8vw 1vw;border:1px solid rgba(255,255,255,0.05);border-radius:0.5vw;background:rgba(255,255,255,0.015);margin-bottom:0.5vw}
+.info-row.hi{border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.04)}
+.info-row.hi2{border-color:rgba(99,102,241,0.25);background:rgba(99,102,241,0.04)}
+.info-icon{width:2vw;height:2vw;border-radius:0.4vw;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:0.65vw;font-weight:700;border:1px solid rgba(255,255,255,0.08);color:#475569;background:rgba(255,255,255,0.04)}
+.info-row.hi .info-icon{background:rgba(34,197,94,0.12);color:#22C55E;border-color:rgba(34,197,94,0.3);box-shadow:0 0 0.8vw rgba(34,197,94,0.12)}
+.info-row.hi2 .info-icon{background:rgba(99,102,241,0.12);color:#818CF8;border-color:rgba(99,102,241,0.3)}
+.info-name{font-size:0.9vw;font-weight:700;color:#94A3B8;margin-bottom:0.15vw}
+.info-row.hi .info-name{color:#E2E8F0}
+.info-row.hi2 .info-name{color:#E2E8F0}
+.info-sub{font-family:'JetBrains Mono',monospace;font-size:0.68vw;color:#1E3A2A}
+.info-row.hi .info-sub{color:#1E5C2A}
+.info-row.hi2 .info-sub{color:#3730A3}
+
+/* ══ Flow ══ */
+.flow-col{display:flex;flex-direction:column}
+.frow{display:flex;align-items:stretch;gap:0.8vw}
+.frow-left{display:flex;flex-direction:column;align-items:center;width:2.2vw;flex-shrink:0}
+.frow-icon{width:2.2vw;height:2.2vw;border-radius:0.4vw;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:0.65vw;font-weight:700;flex-shrink:0}
+.frow-line{flex:1;width:1px;margin:0.2vw 0}
+.fi-g{background:rgba(34,197,94,0.12);color:#22C55E;border:1px solid rgba(34,197,94,0.25)}
+.fi-i{background:rgba(99,102,241,0.12);color:#818CF8;border:1px solid rgba(99,102,241,0.25)}
+.fi-o{background:rgba(251,146,60,0.1);color:#FB923C;border:1px solid rgba(251,146,60,0.2)}
+.fi-dim{background:rgba(255,255,255,0.04);color:#475569;border:1px solid rgba(255,255,255,0.08)}
+.fl-g{background:rgba(34,197,94,0.2)}
+.fl-dim{background:rgba(255,255,255,0.06)}
+.frow-body{flex:1;padding:0.6vw 0;display:flex;flex-direction:column;justify-content:center}
+.frow-name{font-size:0.88vw;font-weight:700;color:#E2E8F0;margin-bottom:0.15vw}
+.frow-name.dim{color:#64748B}
+.frow-sub{font-family:'JetBrains Mono',monospace;font-size:0.68vw;color:#22613A}
+.frow-sub.dim{color:#1A2E1E}
+
+/* ══ Insight callout ══ */
+.insight{display:flex;align-items:flex-start;gap:0.8vw;padding:0.9vw 1.1vw;background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.18);border-radius:0.5vw;border-left:3px solid #22C55E;margin-top:0.8vw}
+.insight-icon{font-family:'JetBrains Mono',monospace;font-size:0.65vw;font-weight:700;color:#22C55E;flex-shrink:0;margin-top:0.1vw}
+.insight-text{font-size:0.8vw;color:#4B6741;line-height:1.6}
+.insight-text strong{color:#22C55E;font-family:'JetBrains Mono',monospace}
+
+/* ══ Module cards ══ */
+.mod-grid{display:grid;grid-template-columns:1fr 1fr;gap:1vw;width:100%}
+.mod-card{border-radius:0.6vw;padding:1.2vw 1.4vw;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)}
+.mod-card.g{border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.04)}
+.mod-card.i{border-color:rgba(99,102,241,0.25);background:rgba(99,102,241,0.04)}
+.mod-card.o{border-color:rgba(251,146,60,0.2);background:rgba(251,146,60,0.04)}
+.mod-card.s{border-color:rgba(34,211,238,0.2);background:rgba(34,211,238,0.04)}
+.mod-file{font-family:'JetBrains Mono',monospace;font-size:0.6vw;letter-spacing:0.14em;color:#334155;margin-bottom:0.35vw;text-transform:uppercase}
+.mod-name{font-size:0.95vw;font-weight:700;color:#E2E8F0;margin-bottom:0.6vw}
+.mod-card.g .mod-name{color:#4ADE80}
+.mod-card.i .mod-name{color:#818CF8}
+.mod-card.o .mod-name{color:#FB923C}
+.mod-card.s .mod-name{color:#22D3EE}
+.mod-methods{font-family:'JetBrains Mono',monospace;font-size:0.68vw;color:#334155;line-height:2}
+.mod-methods span{color:#22C55E}
+.mod-card.i .mod-methods span{color:#818CF8}
+.mod-card.o .mod-methods span{color:#FB923C}
+.mod-card.s .mod-methods span{color:#22D3EE}
+
+/* ══ Decision grid ══ */
+.dec-grid{display:grid;grid-template-columns:1fr 1fr;gap:1vw;width:100%}
+.dec-item{padding:1vw 1.2vw;border-radius:0.5vw;border:1px solid rgba(255,255,255,0.05);background:rgba(255,255,255,0.015)}
+.dec-q{font-family:'JetBrains Mono',monospace;font-size:0.62vw;letter-spacing:0.12em;color:#334155;text-transform:uppercase;margin-bottom:0.4vw}
+.dec-a{font-size:0.9vw;font-weight:700;color:#E2E8F0;margin-bottom:0.3vw}
+.dec-note{font-size:0.72vw;color:#334155;line-height:1.5}
+
+/* ══ Conflict steps ══ */
+.steps{display:flex;flex-direction:column;gap:0.7vw}
+.step-row{display:flex;align-items:flex-start;gap:1vw;padding:0.8vw 1vw;border:1px solid rgba(255,255,255,0.05);border-radius:0.5vw;background:rgba(255,255,255,0.015)}
+.step-row.hi{border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.03)}
+.step-row.hi2{border-color:rgba(99,102,241,0.2);background:rgba(99,102,241,0.03)}
+.step-row.hi3{border-color:rgba(251,146,60,0.2);background:rgba(251,146,60,0.03)}
+.step-num{width:1.8vw;height:1.8vw;border-radius:0.35vw;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:0.7vw;font-weight:700;background:rgba(34,197,94,0.1);color:#22C55E;border:1px solid rgba(34,197,94,0.25)}
+.step-num.i{background:rgba(99,102,241,0.1);color:#818CF8;border-color:rgba(99,102,241,0.25)}
+.step-num.o{background:rgba(251,146,60,0.1);color:#FB923C;border-color:rgba(251,146,60,0.25)}
+.step-text{font-size:0.82vw;color:#94A3B8;line-height:1.6}
+.step-text strong{color:#E2E8F0;font-weight:700}
+.step-text .g{color:#22C55E}
+.step-text .i{color:#818CF8}
+
+/* ══ Summary flow ══ */
+.sum-flow{display:flex;align-items:center;width:100%;gap:0.3vw;margin-bottom:1.5vw}
+.sum-node{flex:1;text-align:center;padding:0.8vw 0.5vw;border-radius:0.5vw;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)}
+.sum-node.g{border-color:rgba(34,197,94,0.25);background:rgba(34,197,94,0.05)}
+.sum-node.i{border-color:rgba(99,102,241,0.25);background:rgba(99,102,241,0.05)}
+.sum-node.o{border-color:rgba(251,146,60,0.2);background:rgba(251,146,60,0.05)}
+.sum-node.s{border-color:rgba(34,211,238,0.2);background:rgba(34,211,238,0.04)}
+.sum-title{font-size:0.82vw;font-weight:700;color:#E2E8F0;margin-bottom:0.2vw}
+.sum-file{font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#FB923C}
+.sum-arr{color:#1E3A2A;font-size:0.9vw;flex-shrink:0}
+
+/* ══ Memory tier cards ══ */
+.tier-row{display:flex;gap:1vw;width:100%}
+.tier{flex:1;border-radius:0.6vw;padding:1.2vw 1.3vw;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.015)}
+.tier.pink{border-color:rgba(236,72,153,0.3);background:rgba(236,72,153,0.04)}
+.tier.ind{border-color:rgba(99,102,241,0.3);background:rgba(99,102,241,0.04)}
+.tier.grn{border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04)}
+.tier-label{font-family:'JetBrains Mono',monospace;font-size:0.6vw;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:0.35vw}
+.tier.pink .tier-label{color:#EC4899}
+.tier.ind  .tier-label{color:#818CF8}
+.tier.grn  .tier-label{color:#22C55E}
+.tier-name{font-size:1vw;font-weight:700;margin-bottom:0.4vw}
+.tier.pink .tier-name{color:#F9A8D4}
+.tier.ind  .tier-name{color:#A5B4FC}
+.tier.grn  .tier-name{color:#4ADE80}
+.tier-human{font-size:0.74vw;color:#475569;margin-bottom:0.5vw;padding-bottom:0.5vw;border-bottom:1px solid rgba(255,255,255,0.05)}
+.tier-agent{font-size:0.78vw;font-weight:600;margin-bottom:0.5vw}
+.tier.pink .tier-agent{color:#EC4899}
+.tier.ind  .tier-agent{color:#818CF8}
+.tier.grn  .tier-agent{color:#22C55E}
+.tier ul{padding-left:1.2vw;font-size:0.72vw;color:#475569;line-height:2}
+
+/* ══ 2-col layout ══ */
+.two-col{position:relative;z-index:10;height:100%;display:grid;grid-template-columns:1fr 1fr;padding:4vw 4vw 3vw;gap:3vw}
+.two-col.a13{grid-template-columns:1fr 1.1fr}
+.col{display:flex;flex-direction:column;justify-content:center}
+.col.gap{gap:0.8vw}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<!-- ══════════ S0: COVER ══════════ -->
+<div class="slide active" id="s0">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div><div class="glow-r"></div></div>
+  <div style="position:relative;z-index:10;height:100%;display:grid;grid-template-columns:1fr 26vw">
+    <div style="display:flex;flex-direction:column;justify-content:center;padding:4vw 3vw 4vw 5vw;border-right:1px solid rgba(34,197,94,0.08)">
+      <div class="chip"><div class="chip-dot"></div>PERSONAL AGENT &nbsp;·&nbsp; MEMORY SYSTEM &nbsp;·&nbsp; CLAUDE API</div>
+      <div style="font-size:6vw;font-weight:900;line-height:0.95;letter-spacing:-0.03em;color:#F8FAFC;margin-bottom:0.8vw">个人 Agent</div>
+      <div style="font-size:6vw;font-weight:900;line-height:0.95;letter-spacing:-0.03em;background:linear-gradient(120deg,#22C55E,#4ADE80 60%,#86EFAC);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:2vw">记忆系统</div>
+      <div class="desc" style="max-width:38vw">参照人类记忆模型，为单窗口长期对话 Agent 构建三层分离 + Token 触发的自动压缩记忆架构</div>
+      <div style="display:flex;gap:0.6vw;flex-wrap:wrap">
+        <span class="badge-g">Raw Layer</span>
+        <span class="badge-i">Episodic Layer</span>
+        <span class="badge-g">Core Layer</span>
+        <span class="badge-o">Auto Compact</span>
+        <span class="badge-dim">Python · Anthropic SDK</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;justify-content:center;padding:3vw 2.5vw 3vw 2.5vw">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:0.65vw;letter-spacing:0.16em;color:#1E3A2A;margin-bottom:1.2vw">// ARCHITECTURE</div>
+      <div class="info-row hi"><div class="info-icon">01</div><div><div class="info-name">Raw 原始层</div><div class="info-sub">memory/history.jsonl</div></div></div>
+      <div style="width:1px;height:0.5vw;background:rgba(34,197,94,0.2);margin-left:1vw"></div>
+      <div class="info-row hi2"><div class="info-icon">02</div><div><div class="info-name">Episodic 中期层</div><div class="info-sub">memory/YYYY-MM-DD.md</div></div></div>
+      <div style="width:1px;height:0.5vw;background:rgba(99,102,241,0.2);margin-left:1vw"></div>
+      <div class="info-row hi"><div class="info-icon">03</div><div><div class="info-name">Core 长期层</div><div class="info-sub">memory/MEMORY.md</div></div></div>
+      <div style="width:1px;height:0.5vw;background:rgba(34,197,94,0.2);margin-left:1vw"></div>
+      <div class="info-row"><div class="info-icon">04</div><div><div class="info-name" style="color:#64748B">Auto Compact</div><div class="info-sub">token threshold → Claude</div></div></div>
+    </div>
+  </div>
+  <div style="position:absolute;bottom:1.5vw;left:5vw;right:3vw;display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:0.7vw;color:#1E3A2A;z-index:20">
+    <div>thesyart &nbsp;·&nbsp; 2026-04-21</div>
+    <div style="color:#166534">14 SLIDES</div>
+  </div>
+</div>
+
+<!-- ══════════ S1: PROBLEM ══════════ -->
+<div class="slide" id="s1">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div></div>
+  <div class="page-id">// 背景 &nbsp;—&nbsp; <span>为什么需要记忆系统？</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">PROBLEM · CONTEXT OVERFLOW</div>
+      <div class="h-main">History<br><em>无限增长</em></div>
+      <div class="desc">单窗口长期对话中，每轮都追加消息，token 占用持续累积，最终超出模型上下文窗口上限。</div>
+      <div class="flow-col">
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-g">用户</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">每轮对话追加消息</div><div class="frow-sub">history.append(user / assistant)</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-i">历史</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">History 持续增长</div><div class="frow-sub">N 轮 × avg_tokens → 无上限</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-o" style="font-size:0.9vw">⚡</div></div>
+          <div class="frow-body"><div class="frow-name" style="color:#FB923C">撞上 200K 上限</div><div class="frow-sub dim">截断历史 or API 报错崩溃</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col gap">
+      <div class="info-row hi" style="flex-direction:column;gap:0.6vw">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.62vw;color:#22C55E;letter-spacing:0.12em">⚡ PROBLEM 1</div>
+        <div style="font-size:0.9vw;font-weight:700;color:#E2E8F0">上下文窗口溢出</div>
+        <div style="font-size:0.78vw;color:#4B6741">history 每轮追加无截断，长期对话必撞 200K 上限，报错或被迫截断</div>
+      </div>
+      <div class="info-row hi3" style="flex-direction:column;gap:0.6vw;border-color:rgba(251,146,60,0.25);background:rgba(251,146,60,0.04)">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.62vw;color:#FB923C;letter-spacing:0.12em">💸 PROBLEM 2</div>
+        <div style="font-size:0.9vw;font-weight:700;color:#E2E8F0">成本持续攀升</div>
+        <div style="font-size:0.78vw;color:#7C4A1E">历史越长每轮花费越高，陈旧信息占宝贵上下文</div>
+      </div>
+      <div class="info-row hi2" style="flex-direction:column;gap:0.6vw">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.62vw;color:#818CF8;letter-spacing:0.12em">🧠 PROBLEM 3</div>
+        <div style="font-size:0.9vw;font-weight:700;color:#E2E8F0">跨窗口记忆消失</div>
+        <div style="font-size:0.78vw;color:#6D6F9E">会话结束即重置，下次启动 agent 一无所知，用户得从头交代</div>
+      </div>
+      <div class="insight" style="margin-top:0">
+        <div class="insight-icon">→</div>
+        <div class="insight-text">目标：<strong>三层分离 + 自动压缩</strong>，在不丢失核心信息的前提下，将活跃 history 保持在可控范围内</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S1.5: MEMORY STORY ══════════ -->
+<div class="slide" id="s_story">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-c"></div></div>
+  <div class="page-id">// 设计灵感 &nbsp;—&nbsp; <span>记忆，到底是怎么一回事</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:2.5vw 4vw 2vw">
+    <div class="tag" style="text-align:center;margin-bottom:0.5vw">HUMAN MEMORY · ANALOGY</div>
+    <div class="h-main" style="text-align:center;font-size:2.6vw;margin-bottom:1.5vw">从<em>一个例子</em>说起</div>
+    <div style="display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:1.2vw;align-items:stretch">
+
+      <!-- Panel 1: Working Memory -->
+      <div style="border-radius:0.6vw;border:1px solid rgba(236,72,153,0.3);background:rgba(236,72,153,0.04);padding:1.2vw 1.3vw;display:flex;flex-direction:column">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.58vw;letter-spacing:0.18em;color:#EC4899;text-transform:uppercase;margin-bottom:0.4vw">Working Memory · 工作记忆</div>
+        <div style="font-size:0.95vw;font-weight:700;color:#F9A8D4;margin-bottom:0.9vw">此刻最清晰</div>
+        <div style="background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.2);border-radius:0.5vw;padding:1vw;text-align:center;margin-bottom:0.6vw">
+          <div style="font-size:2.2vw;margin-bottom:0.3vw">🍽️</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.66vw;color:#EC4899;margin-bottom:0.4vw">晚上 18:00 · 餐厅</div>
+          <div style="font-size:0.82vw;color:#F9A8D4;font-weight:700;margin-bottom:0.3vw">打情骂俏，好不快活</div>
+          <div style="font-size:0.7vw;color:#9D174D;line-height:1.7">每句话、每个动作<br>无比清晰</div>
+        </div>
+        <div style="padding:0.7vw 0.8vw;border:1px solid rgba(236,72,153,0.25);border-radius:0.4vw;background:rgba(236,72,153,0.06);flex:1;display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:0.65vw;color:#EC4899;font-weight:700;margin-bottom:0.3vw">✨ 特点</div>
+          <div style="font-size:0.7vw;color:#9D174D;line-height:1.7">发生在<strong style="color:#F9A8D4">此时此刻</strong><br>每个细节都无比清晰</div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Episodic Memory (Timeline) -->
+      <div style="border-radius:0.6vw;border:1px solid rgba(99,102,241,0.3);background:rgba(99,102,241,0.04);padding:1.2vw 1.3vw;display:flex;flex-direction:column">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.58vw;letter-spacing:0.18em;color:#818CF8;text-transform:uppercase;margin-bottom:0.4vw">Episodic Memory · 情景记忆</div>
+        <div style="font-size:0.95vw;font-weight:700;color:#A5B4FC;margin-bottom:0.9vw">以时间为索引</div>
+
+        <!-- Timeline -->
+        <div style="position:relative;flex:1">
+          <div style="position:absolute;left:0.35vw;top:0.4vw;bottom:0.4vw;width:1px;background:linear-gradient(to bottom,rgba(99,102,241,0.12) 0%,rgba(99,102,241,0.45) 75%,rgba(236,72,153,0.7) 100%)"></div>
+          <div style="display:flex;flex-direction:column;gap:0.55vw;padding-left:1.5vw">
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.38">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#312e81;border:1px solid rgba(99,102,241,0.3)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#4338CA;min-width:2.2vw">08:00</span>
+              <span style="font-size:0.72vw;color:#4338CA">刚起床</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.46">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#3730A3;border:1px solid rgba(99,102,241,0.35)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#4F46E5;min-width:2.2vw">09:00</span>
+              <span style="font-size:0.72vw;color:#4F46E5">开车去接TA</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.54">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#4338CA;border:1px solid rgba(99,102,241,0.4)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#6366F1;min-width:2.2vw">10:00</span>
+              <span style="font-size:0.72vw;color:#6366F1">到了TA家</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.62">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#4F46E5;border:1px solid rgba(99,102,241,0.5)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#6366F1;min-width:2.2vw">11:00</span>
+              <span style="font-size:0.72vw;color:#6366F1">逛商场</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.7">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#6366F1;border:1px solid rgba(99,102,241,0.6)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#818CF8;min-width:2.2vw">12:00</span>
+              <span style="font-size:0.72vw;color:#818CF8">搓了一顿午饭</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.78">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#6366F1;border:1px solid rgba(99,102,241,0.7)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#818CF8;min-width:2.2vw">14:00</span>
+              <span style="font-size:0.72vw;color:#818CF8">到了游乐场</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:0.6vw;opacity:0.86">
+              <div style="position:absolute;left:0.05vw;width:0.62vw;height:0.62vw;border-radius:50%;background:#818CF8;border:1px solid rgba(99,102,241,0.8)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#A5B4FC;min-width:2.2vw">15-17</span>
+              <span style="font-size:0.72vw;color:#A5B4FC">过山车 · 旋转木马 · 鬼屋</span>
+            </div>
+
+            <!-- Current moment -->
+            <div style="display:flex;align-items:center;gap:0.6vw;padding:0.4vw 0.6vw;background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.35);border-radius:0.35vw;margin-left:-0.3vw">
+              <div style="position:absolute;left:-0.05vw;width:0.78vw;height:0.78vw;border-radius:50%;background:#EC4899;box-shadow:0 0 0.8vw rgba(236,72,153,0.7)"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#EC4899;font-weight:700;min-width:2.2vw">18:00</span>
+              <span style="font-size:0.72vw;color:#F9A8D4;font-weight:700">餐厅 ← 此刻</span>
+            </div>
+
+          </div>
+        </div>
+
+        <div style="padding:0.7vw 0.8vw;border:1px solid rgba(99,102,241,0.25);border-radius:0.4vw;background:rgba(99,102,241,0.06);margin-top:0.6vw">
+          <div style="font-size:0.65vw;color:#818CF8;font-weight:700;margin-bottom:0.3vw">✨ 特点</div>
+          <div style="font-size:0.7vw;color:#3730A3;line-height:1.7">越往前越模糊<br>被"戳发"才能想起片段</div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Core Memory -->
+      <div style="border-radius:0.6vw;border:1px solid rgba(34,197,94,0.3);background:rgba(34,197,94,0.04);padding:1.2vw 1.3vw;display:flex;flex-direction:column">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.58vw;letter-spacing:0.18em;color:#22C55E;text-transform:uppercase;margin-bottom:0.4vw">Core Memory · 核心记忆</div>
+        <div style="font-size:0.95vw;font-weight:700;color:#4ADE80;margin-bottom:0.9vw">人生主线</div>
+        <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:0.5vw;padding:0.8vw;text-align:center;margin-bottom:0.8vw">
+          <div style="font-size:2.2vw;margin-bottom:0.3vw">🧭</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.66vw;color:#22C55E">时间维度 · 一年甚至更长</div>
+        </div>
+        <div style="padding:0.7vw 0.8vw;border:1px solid rgba(251,146,60,0.25);border-radius:0.4vw;background:rgba(251,146,60,0.05);margin-bottom:0.5vw">
+          <div style="font-size:0.65vw;color:#FB923C;font-weight:700;margin-bottom:0.3vw">× 只靠前两种记忆</div>
+          <div style="font-size:0.7vw;color:#7C4A1E;line-height:1.7">无比短视，浑浑噩噩<br>没有主线目标</div>
+        </div>
+        <div style="padding:0.7vw 0.8vw;border:1px solid rgba(34,197,94,0.25);border-radius:0.4vw;background:rgba(34,197,94,0.06);flex:1">
+          <div style="font-size:0.65vw;color:#22C55E;font-weight:700;margin-bottom:0.3vw">✓ 加入核心记忆</div>
+          <div style="font-size:0.7vw;color:#4B6741;line-height:1.7">在脑海中定下长线目标<br>划定人生主线<br>行动有方向感</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S2: HUMAN MEMORY ══════════ -->
+<div class="slide" id="s2">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-c"></div></div>
+  <div class="page-id">// 设计灵感 &nbsp;—&nbsp; <span>向人类记忆学习</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:4vw 4vw 3vw">
+    <div class="tag" style="text-align:center">INSPIRATION · HUMAN MEMORY MODEL</div>
+    <div class="h-main" style="text-align:center;margin-bottom:2vw">工作记忆 → 情景记忆 → <em>核心记忆</em></div>
+    <div class="tier-row">
+      <div class="tier pink">
+        <div class="tier-label">Working Memory</div>
+        <div class="tier-name">工作记忆</div>
+        <div class="tier-human">🧠 当前意识焦点，容量极小（7±2 个组块）</div>
+        <div class="tier-agent">→ 最近 K=10 轮原文</div>
+        <ul>
+          <li>每轮进 messages，实时可见</li>
+          <li>主题锚点，防压缩后迷失</li>
+          <li>不写入文件，纯内存</li>
+        </ul>
+      </div>
+      <div class="tier ind">
+        <div class="tier-label">Episodic Memory</div>
+        <div class="tier-name">情景记忆</div>
+        <div class="tier-human">🎬 具体事件情境记录，按时间索引</div>
+        <div class="tier-agent">→ memory/YYYY-MM-DD.md</div>
+        <ul>
+          <li>日历日（UTC+8）为粒度</li>
+          <li>compact 触发时写入</li>
+          <li>按需 grep / read_file 检索</li>
+        </ul>
+      </div>
+      <div class="tier grn">
+        <div class="tier-label">Core Memory</div>
+        <div class="tier-name">核心记忆</div>
+        <div class="tier-human">📚 抽象事实与知识，稳定持久</div>
+        <div class="tier-agent">→ memory/MEMORY.md</div>
+        <ul>
+          <li>常驻系统提示，每轮可见</li>
+          <li>核心目标 / 任务 / 事实</li>
+          <li>≤ 3000 字，防膨胀</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S3: ARCH TABLE ══════════ -->
+<div class="slide" id="s3">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div></div>
+  <div class="page-id">// 架构 &nbsp;—&nbsp; <span>三层记忆总览</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:4vw 4vw 3vw">
+    <div class="tag">ARCHITECTURE · MEMORY TIERS</div>
+    <div class="h-main" style="margin-bottom:1.8vw">三层记忆 + <em>Token 计量</em></div>
+    <table class="g-table">
+      <thead>
+        <tr><th>层级</th><th>文件</th><th>角色</th><th>常驻上下文</th><th>写入时机</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="color:#F9A8D4;font-weight:700">原始层</span><br><span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#334155">Raw</span></td>
+          <td><span class="file">memory/history.jsonl</span></td>
+          <td style="color:#64748B;font-size:0.78vw">完整对话档案，审计/回查</td>
+          <td><span class="badge-dim">否</span></td>
+          <td style="font-size:0.78vw">每轮追加</td>
+        </tr>
+        <tr>
+          <td><span style="color:#A5B4FC;font-weight:700">中期层</span><br><span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#334155">Episodic</span></td>
+          <td><span class="file">memory/YYYY-MM-DD.md</span></td>
+          <td style="color:#64748B;font-size:0.78vw">当天事件摘要、心得、决策</td>
+          <td><span class="badge-dim">否（按需检索）</span></td>
+          <td style="font-size:0.78vw">compact 触发时</td>
+        </tr>
+        <tr>
+          <td><span style="color:#4ADE80;font-weight:700">长期层</span><br><span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#334155">Core</span></td>
+          <td><span class="file">memory/MEMORY.md</span></td>
+          <td style="color:#64748B;font-size:0.78vw">核心目标、当前任务、关键事实</td>
+          <td><span class="badge-g">是，每轮</span></td>
+          <td style="font-size:0.78vw">compact 触发时合并</td>
+        </tr>
+        <tr>
+          <td><span style="color:#E2E8F0;font-weight:700">用户偏好</span><br><span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#334155">User Prefs</span></td>
+          <td><span class="file">templates/USER.md</span></td>
+          <td style="color:#64748B;font-size:0.78vw">稳定的用户习惯与偏好</td>
+          <td><span class="badge-g">是，每轮</span></td>
+          <td style="font-size:0.78vw">检测到偏好信号时</td>
+        </tr>
+        <tr>
+          <td><span style="color:#FDE68A;font-weight:700">Token 计量</span><br><span style="font-family:'JetBrains Mono',monospace;font-size:0.6vw;color:#334155">Telemetry</span></td>
+          <td><span class="file">memory/tokens.jsonl</span></td>
+          <td style="color:#64748B;font-size:0.78vw">每次 API 调用用量记录</td>
+          <td><span class="badge-dim">否</span></td>
+          <td style="font-size:0.78vw">每次 API 调用后</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════ S4: RAW LAYER ══════════ -->
+<div class="slide" id="s4">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-r"></div></div>
+  <div class="page-id">// Layer 1 &nbsp;—&nbsp; <span>原始层 Raw</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">LAYER 1 · RAW · APPEND-ONLY</div>
+      <div class="h-main"><em>history.jsonl</em></div>
+      <div class="desc">完整对话档案，每轮追加，永不覆盖。不进上下文，专供审计与回查。</div>
+      <div class="info-row hi"><div class="info-icon">→</div><div><div class="info-name">Append-Only</div><div class="info-sub">永不覆盖，保留完整原始记录</div></div></div>
+      <div class="info-row"><div class="info-icon">○</div><div><div class="info-name">不进上下文</div><div class="info-sub">仅审计/回查，不占用 token</div></div></div>
+      <div class="info-row hi2"><div class="info-icon">⇄</div><div><div class="info-name">双路写入</div><div class="info-sub">loop.py（用户）+ runner.py（助手）</div></div></div>
+      <div class="info-row"><div class="info-icon">{ }</div><div><div class="info-name">JSON 安全序列化</div><div class="info-sub">_json_safe() 处理 SDK content block</div></div></div>
+    </div>
+    <div class="col gap">
+      <div class="code-card green">
+        <div class="c-head"><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><div class="c-label g">memory/history.jsonl — 示例</div></div>
+        <div class="c-body" style="font-size:0.76vw">
+          <div><span class="va">{</span></div>
+          <div><span class="va">&nbsp;&nbsp;</span><span class="prop">"ts"</span><span class="va">: </span><span class="st">"2026-04-21T14:23:11+08:00"</span><span class="va">,</span></div>
+          <div><span class="va">&nbsp;&nbsp;</span><span class="prop">"role"</span><span class="va">: </span><span class="st">"user"</span><span class="va">,</span></div>
+          <div><span class="va">&nbsp;&nbsp;</span><span class="prop">"content"</span><span class="va">: </span><span class="st">"设计一个记忆系统"</span></div>
+          <div><span class="va">}</span></div>
+        </div>
+      </div>
+      <div class="code-card green">
+        <div class="c-head"><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><div class="c-label g">agent/memory.py — append_history</div></div>
+        <div class="c-body">
+          <div><span class="ln">1</span><span class="kw">def </span><span class="fn">append_history</span><span class="va">(self, role, content):</span></div>
+          <div><span class="ln">2</span><span class="va">&nbsp;&nbsp;row = {</span></div>
+          <div class="hl"><span class="ln">3</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="prop">"ts"</span><span class="va">: datetime.</span><span class="fn">now</span><span class="va">(_UTC8).</span><span class="fn">isoformat</span><span class="va">(),</span></div>
+          <div><span class="ln">4</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="prop">"role"</span><span class="va">: role, </span><span class="prop">"content"</span><span class="va">: </span><span class="fn">_json_safe</span><span class="va">(content),</span></div>
+          <div><span class="ln">5</span><span class="va">&nbsp;&nbsp;}</span></div>
+          <div class="hl"><span class="ln">6</span><span class="va">&nbsp;&nbsp;</span><span class="kw">with </span><span class="va">self.history_file.</span><span class="fn">open</span><span class="va">(</span><span class="st">"a"</span><span class="va">) </span><span class="kw">as </span><span class="va">f:</span></div>
+          <div><span class="ln">7</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;f.</span><span class="fn">write</span><span class="va">(json.</span><span class="fn">dumps</span><span class="va">(row) + </span><span class="st">"\n"</span><span class="va">)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S5: EPISODIC ══════════ -->
+<div class="slide" id="s5">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-r" style="background:radial-gradient(circle,rgba(99,102,241,0.09) 0%,transparent 65%)"></div></div>
+  <div class="page-id">// Layer 2 &nbsp;—&nbsp; <span>中期层 Episodic</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">LAYER 2 · EPISODIC · DAILY FILE</div>
+      <div class="h-main"><em>YYYY-MM-DD.md</em></div>
+      <div class="desc">日历日（UTC+8）切片，compact 触发时写入，不占上下文，按需 grep 检索。</div>
+      <div class="info-row hi2"><div class="info-icon">日</div><div><div class="info-name">日历日切片（UTC+8）</div><div class="info-sub">每天一个文件，跨天自动开新文件</div></div></div>
+      <div class="info-row"><div class="info-icon">↓</div><div><div class="info-name">compact 时写入</div><div class="info-sub">不是每轮写，由 Claude 提炼摘要后追加</div></div></div>
+      <div class="info-row hi"><div class="info-icon">🔍</div><div><div class="info-name">按需检索</div><div class="info-sub">agent 用 grep / read_file 工具搜索过往</div></div></div>
+      <div class="info-row"><div class="info-icon">##</div><div><div class="info-name">带时间戳标题</div><div class="info-sub">## HH:MM 段落标题，便于时间轴回溯</div></div></div>
+    </div>
+    <div class="col gap">
+      <div class="code-card" style="border-color:rgba(99,102,241,0.2)">
+        <div class="c-head"><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><div class="c-label" style="color:#818CF8">memory/2026-04-21.md — 示例</div></div>
+        <div class="c-body" style="font-size:0.76vw">
+          <div><span class="va" style="color:#818CF8"># 2026-04-21 情景记忆</span></div>
+          <div>&nbsp;</div>
+          <div class="hl"><span class="va" style="color:#FB923C">## 14:23 记忆系统设计</span></div>
+          <div><span class="va">- 讨论 agent history 无限增长问题</span></div>
+          <div><span class="va">- 确定三层架构方案 raw/episodic/semantic</span></div>
+          <div><span class="va">- K=10 保留最近轮次作为主题锚点</span></div>
+          <div>&nbsp;</div>
+          <div class="hl"><span class="va" style="color:#FB923C">## 16:45 代码实现</span></div>
+          <div><span class="va">- 完成 TokenTracker / MemoryStore / Compactor</span></div>
+          <div><span class="va">- smoke test 通过</span></div>
+        </div>
+      </div>
+      <div class="insight">
+        <div class="insight-icon">KEY</div>
+        <div class="insight-text">中期层是<strong>索引层</strong>，不常驻上下文。Agent 在需要回顾历史时，主动调用 <strong>grep / read_file</strong> 检索相关日期文件——零 token 开销，无限可回溯。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S6: SEMANTIC ══════════ -->
+<div class="slide" id="s6">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div></div>
+  <div class="page-id">// Layer 3 &nbsp;—&nbsp; <span>长期层 Core</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">LAYER 3 · SEMANTIC · ALWAYS-ON</div>
+      <div class="h-main"><em>MEMORY.md</em></div>
+      <div class="desc">每轮注入系统提示，Claude 始终知道核心目标与当前任务。整体覆写策略，≤3000 字防膨胀。</div>
+      <div class="info-row hi"><div class="info-icon">★</div><div><div class="info-name">常驻系统提示</div><div class="info-sub">每轮对话前注入 context.build_system_prompt()</div></div></div>
+      <div class="info-row"><div class="info-icon">↻</div><div><div class="info-name">整体覆写策略</div><div class="info-sub">compact 时 Claude 读全文 + 新信息产出新版本</div></div></div>
+      <div class="info-row hi"><div class="info-icon">3K</div><div><div class="info-name">防膨胀上限</div><div class="info-sub">提示词约束 ≤3000 字，合并去重，删明显过时</div></div></div>
+      <div class="info-row"><div class="info-icon">⇄</div><div><div class="info-name">双写安全</div><div class="info-sub">agent 手动 edit_file 写入的条目下次 compact 保留</div></div></div>
+    </div>
+    <div class="col gap">
+      <div class="code-card green">
+        <div class="c-head"><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><div class="c-label g">agent/context.py — 注入长期记忆</div></div>
+        <div class="c-body">
+          <div><span class="ln">1</span><span class="kw">def </span><span class="fn">build_system_prompt</span><span class="va">(self) -> str:</span></div>
+          <div><span class="ln">2</span><span class="va">&nbsp;&nbsp;parts = []</span></div>
+          <div><span class="ln">3</span><span class="va">&nbsp;&nbsp;</span><span class="cm"># SOUL.md + USER.md</span></div>
+          <div><span class="ln">4</span><span class="va">&nbsp;&nbsp;parts.</span><span class="fn">append</span><span class="va">(bootstrap)</span></div>
+          <div><span class="ln">5</span></div>
+          <div class="hl"><span class="ln">6</span><span class="va">&nbsp;&nbsp;</span><span class="kw">if </span><span class="va">self.memory:</span></div>
+          <div class="hl"><span class="ln">7</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;memory = self.memory.</span><span class="fn">read_memory</span><span class="va">().</span><span class="fn">strip</span><span class="va">()</span></div>
+          <div class="hl"><span class="ln">8</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="kw">if </span><span class="va">memory:</span></div>
+          <div class="hl"><span class="ln">9</span><span class="va">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;parts.</span><span class="fn">append</span><span class="va">(</span><span class="st">f"# Long-term Memory\n\n{memory}"</span><span class="va">)</span></div>
+          <div><span class="ln">10</span><span class="va">&nbsp;&nbsp;</span><span class="kw">return </span><span class="st">"\n\n---\n\n"</span><span class="va">.</span><span class="fn">join</span><span class="va">(parts)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S7: PER-TURN FLOW ══════════ -->
+<div class="slide" id="s7">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-c"></div></div>
+  <div class="page-id">// 数据流 &nbsp;—&nbsp; <span>一轮对话的完整流程</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">DATA FLOW · PER TURN</div>
+      <div class="h-main" style="font-size:2.8vw">一轮对话的<br><em>完整流程</em></div>
+      <div class="desc">每次用户输入到 Agent 回复，记忆系统在幕后完成三件事：计量、落盘、判断是否压缩。</div>
+      <div class="insight">
+        <div class="insight-icon">KEY</div>
+        <div class="insight-text">Compact 是<strong>同步阻塞</strong>的——在当轮回复返回后立即执行，下轮开始时 history 已缩减到 K=10 轮。用户无感知，主题不丢失。</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="flow-col">
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-g" style="font-size:0.6vw">loop</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">用户输入 → history.append</div><div class="frow-sub">memory.append_history("user", …) → history.jsonl</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-i" style="font-size:0.6vw">API</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">client.messages.create()</div><div class="frow-sub">传入 system + tools + history</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-o" style="font-size:0.6vw">tok</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">token_tracker.record(usage)</div><div class="frow-sub">写入 tokens.jsonl，更新 last_input_tokens</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-g" style="font-size:0.6vw">mem</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">append_history("assistant", reply)</div><div class="frow-sub">落盘助手回复 → history.jsonl</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-o" style="font-size:0.8vw">?</div></div>
+          <div class="frow-body">
+            <div class="frow-name" style="color:#FB923C">last_input_tokens &gt; 0.7 × max_context ?</div>
+            <div style="display:flex;gap:1vw;margin-top:0.4vw">
+              <span class="badge-dim">否 → 返回 reply，继续</span>
+              <span class="badge-g">是 → 触发 Compact</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S8: COMPACT ══════════ -->
+<div class="slide" id="s8">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-r"></div></div>
+  <div class="page-id">// Compact &nbsp;—&nbsp; <span>一次调用，三件事</span></div>
+  <div class="two-col a13">
+    <div class="col">
+      <div class="tag">COMPACT · ONE LLM CALL</div>
+      <div class="h-main">一次调用<br><em>三件事</em></div>
+      <div class="desc">触发阈值后，Compactor 把旧对话 + 现有记忆文件一起发给 Claude，一次调用同时产出三段产物。</div>
+      <div class="flow-col" style="margin-top:0.5vw">
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-o" style="font-size:0.6vw">old</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">history[:-10] 旧对话</div><div class="frow-sub">被压缩的部分，转换为文本</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-i" style="font-size:0.6vw">ctx</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">+ MEMORY.md + USER.md + 今日情景</div><div class="frow-sub">现有记忆全量传入，不截断</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-g" style="font-size:0.55vw">API</div><div class="frow-line fl-g"></div></div>
+          <div class="frow-body"><div class="frow-name">一次 Claude API 调用</div><div class="frow-sub">model=haiku, max_tokens=4000</div></div>
+        </div>
+        <div class="frow">
+          <div class="frow-left"><div class="frow-icon fi-g" style="font-size:0.6vw">K</div></div>
+          <div class="frow-body"><div class="frow-name" style="color:#22C55E">history[-10:] 保留不动</div><div class="frow-sub">作为下轮对话的主题锚点</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="col gap">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:0.62vw;color:#22C55E;letter-spacing:0.12em;margin-bottom:0.5vw">// Claude 产出三段 XML</div>
+      <div class="info-row hi2" style="flex-direction:column;gap:0.5vw;padding:1vw 1.2vw">
+        <div><span class="badge-i">&lt;episode&gt;</span></div>
+        <div style="font-size:0.78vw;color:#6D6F9E">追加到 <span style="color:#FB923C;font-family:'JetBrains Mono',monospace">memory/2026-04-21.md</span><br>格式：<code style="color:#E2E8F0">## HH:MM 段落标题</code> + 要点列表</div>
+      </div>
+      <div class="info-row hi" style="flex-direction:column;gap:0.5vw;padding:1vw 1.2vw">
+        <div><span class="badge-g">&lt;updated_memory&gt;</span></div>
+        <div style="font-size:0.78vw;color:#4B6741">整体覆写 <span style="color:#FB923C;font-family:'JetBrains Mono',monospace">memory/MEMORY.md</span><br>保留有效 + 合并新信息 + 去重 + ≤3000字</div>
+      </div>
+      <div class="info-row" style="flex-direction:column;gap:0.5vw;padding:1vw 1.2vw;border-color:rgba(251,146,60,0.2);background:rgba(251,146,60,0.04)">
+        <div><span class="badge-o">&lt;updated_user&gt;</span></div>
+        <div style="font-size:0.78vw;color:#7C4A1E">整体覆写 <span style="color:#FB923C;font-family:'JetBrains Mono',monospace">templates/USER.md</span><br>仅在检测到明确偏好信号时修改</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S9: PROMPT SKELETON ══════════ -->
+<div class="slide" id="s9">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div></div>
+  <div class="page-id">// Compact &nbsp;—&nbsp; <span>提示词骨架</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">COMPACT · PROMPT DESIGN</div>
+      <div class="h-main">提示词<br><em>骨架设计</em></div>
+      <div class="desc">Compactor 的提示词把所有上下文全量传入，让 Claude 在一次调用中完成记忆整理的三件事。</div>
+      <div class="steps">
+        <div class="step-row hi"><div class="step-num">1</div><div class="step-text"><strong>&lt;old_conversation&gt;</strong> — 被压缩的旧对话，展平为可读文本</div></div>
+        <div class="step-row hi2"><div class="step-num i">2</div><div class="step-text"><strong>&lt;current_memory&gt;</strong> — MEMORY.md 完整现有内容，不截断</div></div>
+        <div class="step-row hi2"><div class="step-num i">3</div><div class="step-text"><strong>&lt;current_user&gt;</strong> — USER.md 完整现有内容</div></div>
+        <div class="step-row hi2"><div class="step-num i">4</div><div class="step-text"><strong>&lt;today_episode_so_far&gt;</strong> — 当天情景文件，可能为空</div></div>
+        <div class="step-row hi"><div class="step-num">→</div><div class="step-text"><span class="g">产出三段 XML</span>，缺一不可：episode + updated_memory + updated_user</div></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="code-card green">
+        <div class="c-head"><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div><div class="c-label g">agent/compactor.py — 提示词结构</div></div>
+        <div class="c-body" style="font-size:0.74vw">
+          <div><span class="va" style="color:#22C55E">&lt;old_conversation&gt;</span></div>
+          <div><span class="va">&nbsp;&nbsp;...被压缩的旧对话文本...</span></div>
+          <div><span class="va" style="color:#22C55E">&lt;/old_conversation&gt;</span></div>
+          <div>&nbsp;</div>
+          <div><span class="va" style="color:#818CF8">&lt;current_memory&gt;</span></div>
+          <div><span class="va">&nbsp;&nbsp;...MEMORY.md 当前内容...</span></div>
+          <div><span class="va" style="color:#818CF8">&lt;/current_memory&gt;</span></div>
+          <div>&nbsp;</div>
+          <div><span class="va" style="color:#818CF8">&lt;today_episode_so_far&gt;</span></div>
+          <div><span class="va">&nbsp;&nbsp;...今日情景文件，可能为空...</span></div>
+          <div><span class="va" style="color:#818CF8">&lt;/today_episode_so_far&gt;</span></div>
+          <div>&nbsp;</div>
+          <div class="hl"><span class="cm"># 产出要求：三段 XML 缺一不可</span></div>
+          <div><span class="va" style="color:#22C55E">&lt;episode&gt;</span><span class="va">...</span><span class="va" style="color:#22C55E">&lt;/episode&gt;</span></div>
+          <div><span class="va" style="color:#22C55E">&lt;updated_memory&gt;</span><span class="va">...</span><span class="va" style="color:#22C55E">&lt;/updated_memory&gt;</span></div>
+          <div><span class="va" style="color:#FB923C">&lt;updated_user&gt;</span><span class="va">...</span><span class="va" style="color:#FB923C">&lt;/updated_user&gt;</span></div>
+        </div>
+      </div>
+      <div class="insight" style="margin-top:0.8vw">
+        <div class="insight-icon">→</div>
+        <div class="insight-text"><strong>MEMORY.md 防膨胀规则</strong>：保留有效 + 合并新信息 + 去重归并 + 删明显过时 + <strong>总字数 ≤ 3000</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S10: CONFLICT ══════════ -->
+<div class="slide" id="s10">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-c"></div></div>
+  <div class="page-id">// 冲突解决 &nbsp;—&nbsp; <span>让 Claude 整体重写</span></div>
+  <div class="two-col">
+    <div class="col">
+      <div class="tag">CONFLICT RESOLUTION · FULL REWRITE</div>
+      <div class="h-main">整体重写<br><em>零合并代码</em></div>
+      <div class="desc">不用 diff/patch，不写合并算法。把现有全量内容 + 新对话都给 Claude，让它统一决策、产出完整新版本。</div>
+      <div class="insight">
+        <div class="insight-icon">KEY</div>
+        <div class="insight-text"><strong>两条写入路径</strong>无竞争：agent 用 <strong>edit_file</strong> 手动写入的条目，下次 compact 时 Claude 会原样看到并保留。</div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="steps">
+        <div class="step-row hi"><div class="step-num">1</div><div class="step-text"><strong class="g">传入全量旧内容</strong> — MEMORY.md 和 USER.md 的<strong>完整现有内容</strong>，不截断不摘要</div></div>
+        <div class="step-row hi2"><div class="step-num i">2</div><div class="step-text"><strong class="i">Claude 统一决策</strong> — 保留所有仍有效条目，从新对话提炼关键信息合并，去重归并同类</div></div>
+        <div class="step-row hi"><div class="step-num">3</div><div class="step-text"><strong class="g">产出完整新版本</strong> — 直接覆写文件，无 diff / patch 代码，无合并冲突 <span class="badge-g">零合并代码</span></div></div>
+        <div class="step-row hi3"><div class="step-num o">4</div><div class="step-text"><strong style="color:#FB923C">双写安全</strong> — agent 手动 edit_file 写入的条目，compact 时原样保留，两条路径无竞争 <span class="badge-o">无锁</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S11: DECISIONS ══════════ -->
+<div class="slide" id="s11">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-r"></div></div>
+  <div class="page-id">// 设计决策 &nbsp;—&nbsp; <span>关键取舍一览</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:4vw 4vw 3vw">
+    <div class="tag">DESIGN DECISIONS · KEY TRADE-OFFS</div>
+    <div class="h-main" style="margin-bottom:1.5vw">关键设计<em>决策</em></div>
+    <div class="dec-grid">
+      <div class="dec-item" style="border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.03)">
+        <div class="dec-q">触发条件</div>
+        <div class="dec-a" style="color:#4ADE80">last_input_tokens &gt; 0.7 × max_context</div>
+        <div class="dec-note">0.7 阈值留出余量，避免在边界反复触发</div>
+      </div>
+      <div class="dec-item" style="border-color:rgba(236,72,153,0.2);background:rgba(236,72,153,0.03)">
+        <div class="dec-q">保留轮数 K</div>
+        <div class="dec-a" style="color:#F9A8D4">K = 10 轮原文</div>
+        <div class="dec-note">主题锚点，确保压缩后仍能继续当前对话线索</div>
+      </div>
+      <div class="dec-item" style="border-color:rgba(99,102,241,0.2);background:rgba(99,102,241,0.03)">
+        <div class="dec-q">中期文件粒度</div>
+        <div class="dec-a" style="color:#A5B4FC">日历日（UTC+8）</div>
+        <div class="dec-note">跨天自动开新文件，同天连续追加，无需手动管理</div>
+      </div>
+      <div class="dec-item" style="border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.03)">
+        <div class="dec-q">压缩时机</div>
+        <div class="dec-a" style="color:#4ADE80">同步阻塞</div>
+        <div class="dec-note">当轮结束后立即执行，下轮开始时 history 已缩减</div>
+      </div>
+      <div class="dec-item" style="border-color:rgba(251,146,60,0.2);background:rgba(251,146,60,0.03)">
+        <div class="dec-q">中期检索方案</div>
+        <div class="dec-a" style="color:#FCD34D">复用现有 grep / read_file</div>
+        <div class="dec-note">不新增工具，agent 自主决定何时检索历史文件</div>
+      </div>
+      <div class="dec-item" style="border-color:rgba(34,197,94,0.2);background:rgba(34,197,94,0.03)">
+        <div class="dec-q">MEMORY.md 防膨胀</div>
+        <div class="dec-a" style="color:#4ADE80">提示词约束 ≤ 3000 字</div>
+        <div class="dec-note">Claude 合并去重删过时，输出完整新版本覆写</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S12: MODULES ══════════ -->
+<div class="slide" id="s12">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div></div>
+  <div class="page-id">// 实现 &nbsp;—&nbsp; <span>四个核心模块</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:4vw 4vw 3vw">
+    <div class="tag">IMPLEMENTATION · FOUR MODULES</div>
+    <div class="h-main" style="margin-bottom:1.5vw">四个<em>核心模块</em></div>
+    <div class="mod-grid">
+      <div class="mod-card g">
+        <div class="mod-file">agent/telemetry.py</div>
+        <div class="mod-name">TokenTracker</div>
+        <div class="mod-methods">
+          <span>record</span>(model, usage) → tokens.jsonl<br>
+          <span>last_input_tokens</span>() → int<br>
+          <span>should_compact</span>(max_ctx, threshold) → bool<br>
+          <span>stats_by_date</span>() / <span>stats_by_model</span>() → dict
+        </div>
+      </div>
+      <div class="mod-card i">
+        <div class="mod-file">agent/memory.py</div>
+        <div class="mod-name">MemoryStore</div>
+        <div class="mod-methods">
+          <span>append_history</span>(role, content) → jsonl<br>
+          <span>today_episode_path</span>() → Path (UTC+8)<br>
+          <span>append_episode</span>(content) → episode md<br>
+          <span>read_memory</span>() / <span>write_memory</span>()<br>
+          <span>read_user</span>() / <span>write_user</span>()
+        </div>
+      </div>
+      <div class="mod-card o">
+        <div class="mod-file">agent/compactor.py</div>
+        <div class="mod-name">Compactor</div>
+        <div class="mod-methods">
+          K = <span style="color:#FDE68A">10</span><br>
+          <span>compact</span>(history) → history[-K:]<br>
+          → 一次 Claude API 调用<br>
+          → 解析 XML 三段产物<br>
+          → 落盘 episode / memory / user
+        </div>
+      </div>
+      <div class="mod-card s">
+        <div class="mod-file">agent/runner.py</div>
+        <div class="mod-name">AgentRunner</div>
+        <div class="mod-methods">
+          <span>step</span>(history) → str<br>
+          → token_tracker.<span>record</span>(usage)<br>
+          → memory_store.<span>append_history</span>()<br>
+          → <span>_maybe_compact</span>(history)<br>
+          <span>_maybe_compact</span>() → compactor.compact()
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ S13: SUMMARY ══════════ -->
+<div class="slide" id="s13">
+  <div class="bg"><div class="grid"></div><div class="top-bar"></div><div class="glow-l"></div><div class="glow-r"></div></div>
+  <div class="page-id">// 总结 &nbsp;—&nbsp; <span>系统全貌</span></div>
+  <div style="position:relative;z-index:10;height:100%;display:flex;flex-direction:column;justify-content:center;padding:4vw 4vw 3vw">
+    <div class="tag">SUMMARY · FULL PICTURE</div>
+    <div class="h-main" style="margin-bottom:1.5vw;text-align:center">系统<em>全貌</em></div>
+    <div class="sum-flow">
+      <div class="sum-node g"><div class="sum-title">用户输入</div><div class="sum-file">loop.py</div></div>
+      <div class="sum-arr">→</div>
+      <div class="sum-node i"><div class="sum-title">API 调用</div><div class="sum-file">runner.py</div></div>
+      <div class="sum-arr">→</div>
+      <div class="sum-node o"><div class="sum-title">Token 计量</div><div class="sum-file">telemetry.py</div></div>
+      <div class="sum-arr">→</div>
+      <div class="sum-node g"><div class="sum-title">落盘</div><div class="sum-file">memory.py</div></div>
+      <div class="sum-arr">→</div>
+      <div class="sum-node s"><div class="sum-title">自动压缩</div><div class="sum-file">compactor.py</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1vw">
+      <div class="info-row hi" style="flex-direction:column;align-items:center;text-align:center;padding:1.2vw 1vw;gap:0.5vw">
+        <div style="font-size:1.8vw">🗂️</div>
+        <div style="font-size:0.88vw;font-weight:700;color:#4ADE80">纯文件持久化</div>
+        <div style="font-size:0.72vw;color:#4B6741">JSONL + Markdown<br>无数据库依赖</div>
+      </div>
+      <div class="info-row" style="flex-direction:column;align-items:center;text-align:center;padding:1.2vw 1vw;gap:0.5vw;border-color:rgba(236,72,153,0.2);background:rgba(236,72,153,0.04)">
+        <div style="font-size:1.8vw">⚡</div>
+        <div style="font-size:0.88vw;font-weight:700;color:#F9A8D4">零合并代码</div>
+        <div style="font-size:0.72vw;color:#9D174D">冲突由 Claude 处理<br>整体重写策略</div>
+      </div>
+      <div class="info-row hi2" style="flex-direction:column;align-items:center;text-align:center;padding:1.2vw 1vw;gap:0.5vw">
+        <div style="font-size:1.8vw">🧠</div>
+        <div style="font-size:0.88vw;font-weight:700;color:#A5B4FC">三层分离</div>
+        <div style="font-size:0.72vw;color:#6D6F9E">Raw / Episodic / Core<br>仿人类记忆模型</div>
+      </div>
+      <div class="info-row hi" style="flex-direction:column;align-items:center;text-align:center;padding:1.2vw 1vw;gap:0.5vw">
+        <div style="font-size:1.8vw">🎯</div>
+        <div style="font-size:0.88vw;font-weight:700;color:#4ADE80">主题不丢失</div>
+        <div style="font-size:0.72vw;color:#4B6741">K=10 锚点 + MEMORY.md<br>压缩后仍能继续对话</div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:1.5vw;font-family:'JetBrains Mono',monospace;font-size:0.7vw;color:#1E3A2A">
+      PERSONAL AGENT MEMORY SYSTEM &nbsp;·&nbsp; BUILT WITH CLAUDE API &nbsp;·&nbsp; thesyart &nbsp;·&nbsp; 2026
+    </div>
+  </div>
+</div>
+
+</div><!-- .deck -->
+
+<div class="nav">
+  <div class="nav-btn" id="prev">&#8592;</div>
+  <div class="nav-dots" id="dots"></div>
+  <div class="nav-count" id="count">1 / 13</div>
+  <div class="nav-btn" id="next">&#8594;</div>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const dotsEl = document.getElementById('dots');
+const countEl = document.getElementById('count');
+let cur = 0;
+
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'nav-dot' + (i === 0 ? ' on' : '');
+  d.onclick = () => go(i);
+  dotsEl.appendChild(d);
+});
+
+function go(n) {
+  slides[cur].classList.remove('active');
+  dotsEl.children[cur].classList.remove('on');
+  cur = (n + slides.length) % slides.length;
+  slides[cur].classList.add('active');
+  dotsEl.children[cur].classList.add('on');
+  countEl.textContent = `${cur + 1} / ${slides.length}`;
+}
+
+document.getElementById('prev').onclick = () => go(cur - 1);
+document.getElementById('next').onclick = () => go(cur + 1);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(cur + 1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                     { e.preventDefault(); go(cur - 1); }
+});
+
+let tx = 0;
+document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx;
+  if (Math.abs(dx) > 50) go(dx < 0 ? cur + 1 : cur - 1);
+});
+</script>
+</body>
+</html>
