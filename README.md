@@ -2,8 +2,8 @@
 
 用 Python 从零构建 AI Agent。包含两部分：
 
-1. **`agent/`** — 一个完整可用的多轮对话 Agent，带三层记忆系统、自动压缩、可插拔技能。
-2. **[build-agent-example/](build-agent-example/)** — 6 个渐进式教学示例（agent1 → agent6），从单次对话到 Tool Use + Skills。
+1. **`agent/`** — 一个完整可用的多轮对话 Agent，带三层记忆系统、自动压缩、可插拔技能、任务规划与子代理派遣。
+2. **[build-agent-example/](build-agent-example/)** — 8 个渐进式教学示例（step01 → step08），从单次对话到 Tool Use + Skills + Todolist + Subagent。每个示例都配有同名讲解文档。
 
 配套讲解 PPT 见 [ppt/](ppt/)。
 
@@ -14,42 +14,49 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate                 # Windows: .venv\Scripts\activate
-pip install anthropic python-dotenv pyyaml jinja2
+pip install -r requirements.txt
 
 cp .env.example .env                      # 填入 ANTHROPIC_API_KEY
 
-python agent.py                           # 启动主 Agent
+python agent.py                                        # 启动主 Agent
 # —— 或 ——
-python build-agent-example/agent1.py      # 从最简单的教学示例开始
+python build-agent-example/code/step01_single_call.py  # 从最简单的教学示例开始
 ```
 
 ---
 
 ## 主 Agent（`agent.py` + `agent/` 包）
 
-启动后是一个"大内总管 / 皇上"角色的命令行对话循环。
+启动后是一个"大内总管 / 皇上"角色的命令行对话循环。皇上下旨，总管调度工具、分发小太监、把差事办妥后回禀。
 
 ### 目录结构
 
 ```
 agent.py                    入口（4 行）
 agent/
-├── loop.py                 主循环
+├── loop.py                 主循环 + 全部组件装配
 ├── runner.py               单轮 messages.create + tool_use 循环
 ├── memory.py               三层记忆存储
 ├── compactor.py            历史压缩 → 情景记忆 + MEMORY.md
 ├── context.py              system prompt 组装（Jinja2）
 ├── skills.py               技能加载器
 ├── telemetry.py            token 用量记录与压缩触发判断
-└── tools/                  内置工具（shell / web / 文件 / glob / grep / load_skill）
+├── subagents/              子代理 spec + registry（从模板加载身份）
+└── tools/                  内置工具
+    ├── shell / web / filesystem / search / skills
+    ├── todo.py             update_todos —— 任务规划 todolist
+    └── dispatch.py         dispatch_subagent —— 派遣子代理
 
 templates/
 ├── SOUL.md                 Agent 灵魂档案（人格 / 使命 / 边界，只读）
 ├── USER.md                 用户偏好档案（压缩时按信号更新）
-└── agent/
-    ├── identity.md         工作区路径声明（Jinja2 模板）
-    ├── skills_section.md   技能清单注入
-    └── compact_prompt.md   压缩 LLM 的提示词
+├── agent/
+│   ├── identity.md         工作区路径声明（Jinja2 模板）
+│   ├── skills_section.md   技能清单注入
+│   └── compact_prompt.md   压缩 LLM 的提示词
+└── subagents/              子代理身份模板
+    ├── general.md          通用小太监（可读写、可执行命令）
+    └── researcher.md       研究小太监（只读 / 查资料）
 
 memory/                     运行期产物（已 gitignore）
 ├── MEMORY.md               长期记忆，每轮注入 system prompt
@@ -82,19 +89,40 @@ skills/                     可插拔技能包
 | `read_file` / `write_file` / `edit_file` | 工作区文件读写 |
 | `glob` / `grep` | 工作区搜索 |
 | `load_skill` | 按需加载 `skills/{name}/SKILL.md` 进上下文 |
+| `update_todos` | 维护当前差事的 todolist（同时只允许一个 in_progress） |
+| `dispatch_subagent` | 派遣预设身份的小太监独立办差，仅回传一段总结 |
+
+### 任务规划：todolist
+
+`update_todos` 工具维护一份跨用户回合存活的待办列表。每次传入完整数组（全量覆盖），状态在 `pending / in_progress / completed` 间流转，约束同一时间至多一个任务为 `in_progress`。Todo 不进入 `history`，压缩时不会丢失。
+
+### 子代理派遣：dispatch_subagent
+
+子代理拥有**独立的 history**：跑工具、试错、读多个文件都发生在子上下文中，最后只回传一段文字总结，主 history 只多一条 `tool_result`。适合：抓取并阅读多个网页、批量执行命令并整理输出、跨多文件查找。
+
+身份定义在 `templates/subagents/{name}.md`（只写身份/口吻/职责）+ `agent/subagents/registry.py`（写工具白名单和 `max_turns`，安全设置不放模板）。当前内置：
+
+- `general` — 通用小太监，可读可写可执行命令，办需要动手的独立差事。
+- `researcher` — 研究小太监，只读，仅用 `run_command` 跑只读命令（curl / find / jq 等）。
+
+子代理**不能再派遣其他子代理**（`dispatch_subagent` 不在白名单内，防递归），也**不能写主 agent 的 todolist**。
 
 ---
 
 ## 教学示例 [build-agent-example/](build-agent-example/)
 
-| 文件 | 能力 | 新增概念 |
-|------|------|----------|
-| [agent1.py](build-agent-example/agent1.py) | 单次对话 | API 调用基础 |
-| [agent2.py](build-agent-example/agent2.py) | 连续对话 | 循环交互 |
-| [agent3.py](build-agent-example/agent3.py) | 多轮记忆 | `messages[]` 历史 |
-| [agent4.py](build-agent-example/agent4.py) | 角色设定 | system prompt |
-| [agent5.py](build-agent-example/agent5.py) | Tool Use | 工具调用循环 |
-| [agent6.py](build-agent-example/agent6.py) | 多工具 + Skills | 动态加载技能包 |
+`code/` 放代码，`doc/` 放同名讲解文档。
+
+| 步骤 | 代码 | 文档 | 能力 | 新增概念 |
+|------|------|------|------|----------|
+| 1 | [step01_single_call.py](build-agent-example/code/step01_single_call.py) | [doc](build-agent-example/doc/step01_single_call.md) | 单次对话 | API 调用基础 |
+| 2 | [step02_loop_no_memory.py](build-agent-example/code/step02_loop_no_memory.py) | [doc](build-agent-example/doc/step02_loop_no_memory.md) | 连续对话 | 循环交互 |
+| 3 | [step03_history.py](build-agent-example/code/step03_history.py) | [doc](build-agent-example/doc/step03_history.md) | 多轮记忆 | `messages[]` 历史 |
+| 4 | [step04_system_prompt.py](build-agent-example/code/step04_system_prompt.py) | [doc](build-agent-example/doc/step04_system_prompt.md) | 角色设定 | system prompt |
+| 5 | [step05_tool_use.py](build-agent-example/code/step05_tool_use.py) | [doc](build-agent-example/doc/step05_tool_use.md) | Tool Use | 工具调用循环 |
+| 6 | [step06_skills.py](build-agent-example/code/step06_skills.py) | [doc](build-agent-example/doc/step06_skills.md) | 多工具 + Skills | 动态加载技能包 |
+| 7 | [step07_plan_todolist.py](build-agent-example/code/step07_plan_todolist.py) | [doc](build-agent-example/doc/step07_plan_todolist.md) | 任务规划 | `update_todos` todolist |
+| 8 | [step08_subagent.py](build-agent-example/code/step08_subagent.py) | [doc](build-agent-example/doc/step08_subagent.md) | 子代理派遣 | `dispatch_subagent` 独立上下文 |
 
 ---
 
@@ -110,7 +138,6 @@ skills/                     可插拔技能包
 - `skill-creator` — 创建 / 更新技能
 - `summarize` — URL / 播客 / 文件总结
 - `weather` — 天气查询
-- `web-ppt` — 生成网页式技术演讲稿
 
 ---
 
@@ -125,4 +152,7 @@ skills/                     可插拔技能包
 
 ## 配套 PPT
 
-[ppt/第一期:什么是agent.html](ppt/第一期:什么是agent.html) · [ppt/第二期:手搓agent.html](ppt/第二期:手搓agent.html) · [ppt/第三期:记忆系统.html](ppt/第三期:记忆系统.html)
+- [第一期：什么是 agent](ppt/第一期:什么是agent.html)
+- [第二期：手搓 agent](ppt/第二期:手搓agent.html)
+- [第三期：记忆系统](ppt/第三期:记忆系统.html)
+- [第四期：任务规划与分发子代理实现](ppt/第四期:任务规划与分发子代理实现.html)
