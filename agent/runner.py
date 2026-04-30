@@ -10,12 +10,13 @@ class AgentRunner:
         model: str,
         registry: ToolRegistry,
         system_prompt: str,
-        max_tokens: int = 1000,
+        max_tokens: int = 20000,
         memory_store=None,
         token_tracker=None,
         compactor=None,
         max_context: int = 200_000,
         compact_threshold: float = 0.7,
+        max_turns: int | None = None,
     ):
         self.client = client
         self.model = model
@@ -27,10 +28,15 @@ class AgentRunner:
         self.compactor = compactor
         self.max_context = max_context
         self.compact_threshold = compact_threshold
+        self.max_turns = max_turns
 
     def step(self, history: list) -> str:
         """Run one full turn (user→...→final-text). Mutates `history` in place."""
+        turns = 0
         while True:
+            if self.max_turns is not None and turns >= self.max_turns:
+                return f"（达到 max_turns={self.max_turns} 上限, 未办妥；history 中已有部分进展）"
+            turns += 1
             message = self.client.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,

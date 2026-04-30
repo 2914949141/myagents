@@ -11,16 +11,18 @@ from .context import ContextBuilder
 from .memory import MemoryStore
 from .runner import AgentRunner
 from .skills import SkillsLoader
+from .subagents import SubagentRegistry
 from .telemetry import TokenTracker
 from .tools import (
     LoadSkill, RunCommand, ToolRegistry, WebFetch,
     ReadFileTool, WriteFileTool, EditFileTool, GlobTool, GrepTool,
+    TodoStore, UpdateTodosTool, DispatchSubagentTool,
 )
 
 
 class AgentLoop:
     def __init__(self, root: Path | None = None,
-                 model: str = "claude-haiku-4-5-20251001"):
+                 model: str = "qwen3.6-35b-a3b-ud-mlx"):
         load_dotenv()
         self.root = root or Path(__file__).parent.parent
 
@@ -49,6 +51,37 @@ class AgentLoop:
         registry.register(EditFileTool(workspace))
         registry.register(GlobTool(workspace))
         registry.register(GrepTool(workspace))
+
+        self.todos = TodoStore()
+        registry.register(UpdateTodosTool(self.todos))
+
+        # 子代理: 必须最后注册 dispatch 工具, 让它能拿到完整的 parent_registry
+        # 传 skills 让子代理 system prompt 也能看到 skills 摘要
+        subagent_registry = SubagentRegistry(
+            self.root / "templates" / "subagents",
+            skills_loader=skills,
+        )
+
+        def _make_subagent_runner(*, spec, sub_registry):
+            return AgentRunner(
+                client=client,
+                model=model,
+                registry=sub_registry,
+                system_prompt=spec.system_prompt,
+                max_tokens=2000,
+                memory_store=None,
+                token_tracker=None,
+                compactor=None,
+                max_turns=spec.max_turns,
+            )
+
+        registry.register(DispatchSubagentTool(
+            client=client,
+            model=model,
+            parent_registry=registry,
+            subagent_registry=subagent_registry,
+            runner_factory=_make_subagent_runner,
+        ))
 
         unarchived = self.memory.load_unarchived_history()
         if len(unarchived) >= 2:

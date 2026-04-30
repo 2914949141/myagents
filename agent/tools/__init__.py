@@ -15,6 +15,8 @@ from .web import WebFetch
 from .skills import LoadSkill
 from .filesystem import ReadFileTool, WriteFileTool, EditFileTool
 from .search import GlobTool, GrepTool
+from .todo import TodoStore, UpdateTodosTool
+from .dispatch import DispatchSubagentTool
 
 __all__ = [
     "Tool",
@@ -36,4 +38,7 @@ __all__ = [
     "EditFileTool",
     "GlobTool",
     "GrepTool",
+    "TodoStore",
+    "UpdateTodosTool",
+    "DispatchSubagentTool",
 ]

@@ -8,6 +8,7 @@ client = anthropic.Anthropic(
     api_key=os.environ["ANTHROPIC_API_KEY"],
     base_url=os.environ["ANTHROPIC_BASE_URL"],
 )
+MODEL = os.environ["ANTHROPIC_MODEL"]
 
 SYSTEM_PROMPT = """
 你是大内太监总管，侍奉皇上多年，忠心耿耿。
@@ -42,7 +43,7 @@ while True:
 
     while True:
         message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model=MODEL,
             max_tokens=1000,
             system=SYSTEM_PROMPT,
             tools=TOOLS,
