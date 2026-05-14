@@ -23,23 +23,6 @@ python agent.py                                        # 启动主 Agent
 python build-agent-example/code/step01_single_call.py  # 从最简单的教学示例开始
 ```
 
----
-
-## 进阶展示：Emperor Agent
-
-学完本仓库的 step01 → step09 后，如果想看一个更完整的产品化形态，可以继续参考：
-
-[TheSyart/emperor-agent](https://github.com/TheSyart/emperor-agent) — 一个本地运行的皇帝风格 AI Agent，带 Vue WebUI、多模型提供商、流式聊天、工具、Skills、记忆系统和 token 用量统计。
-
-它适合作为本仓库的进阶展示：
-
-- 从命令行教学示例，进阶到 WebUI 交互体验；
-- 从单一 Claude API 调用，进阶到多模型提供商接入；
-- 从基础工具调用，进阶到工具、技能、记忆和 telemetry 的完整组合；
-- 从“手搓 Agent 原理”，进阶到“可体验的 Agent 产品雏形”。
-
----
-
 ## 主 Agent（`agent.py` + `agent/` 包）
 
 启动后是一个"大内总管 / 皇上"角色的命令行对话循环。皇上下旨，总管调度工具、分发小太监、把差事办妥后回禀。
@@ -205,3 +188,18 @@ assistant tool_use:
 - [第四期：Agent 任务规划](ppt/第四期:agent任务规划.html)
 - [第五期：Agent 子代理的实现](ppt/第五期:agent子代理的实现.html)
 - [第六期：Agent Team 团队协作](ppt/第六期-agent团队协作.html)
+
+---
+
+## 延伸项目
+
+学完本仓库的 step01 → step09 后，如果想看一个更完整的产品化形态，可以继续参考：
+
+[TheSyart/emperor-agent](https://github.com/TheSyart/emperor-agent) — 一个本地运行的皇帝风格 AI Agent，带 Vue WebUI、多模型提供商、流式聊天、工具、Skills、记忆系统和 token 用量统计。
+
+它适合作为本仓库的进阶展示：
+
+- 从命令行教学示例，进阶到 WebUI 交互体验；
+- 从单一 Claude API 调用，进阶到多模型提供商接入；
+- 从基础工具调用，进阶到工具、技能、记忆和 telemetry 的完整组合；
+- 从“手搓 Agent 原理”，进阶到“可体验的 Agent 产品雏形”。
