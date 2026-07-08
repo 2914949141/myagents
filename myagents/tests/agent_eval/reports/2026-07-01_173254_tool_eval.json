@@ -1,0 +1,217 @@
+{
+  "summary": {
+    "total": 11,
+    "passed": 10,
+    "pass_rate": 0.9090909090909091,
+    "tool_accuracy": 0.9090909090909091,
+    "forbidden_rate": 0.0,
+    "over_rag_rate": 0.0,
+    "avg_rag_calls_on_knowledge": 1.2
+  },
+  "results": [
+    {
+      "id": "knowledge-001",
+      "query": "献浆间隔多久可以再次献浆？",
+      "category": "knowledge",
+      "tools_called": [
+        "rag_search",
+        "rag_search"
+      ],
+      "rag_calls": 2,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "根据《单采血浆站技术操作规程(2022年版)》的规定，献浆间隔时间如下：\n\n### 1. 常规献浆间隔\n**两次单采血浆的间隔不得少于 14 天。**\n*   **计算示例：** 如果某月 1 日献浆，同月 15 日可再次献浆。\n*   **年度限制：** 每 12 个月的累计献浆次数不超过 **24 次**。\n\n### 2. 特殊情况的间隔要求\n如果您之前进行过其他血液采集操作，需满足以下更长的间隔期才能再次献浆：\n*   **献全血后：** 需间隔不少于 **3 个月** 方可献浆。\n*   **献单采血小板后：** 需间隔不少于 **14 天** 方可献浆。\n\n### 💡 温馨提示\n* ",
+      "sources": [
+        "血液行业规范和标准的解读\u000b（2020版） - 第10部分",
+        "《中华人民共和国献血法》(1997) - 第3部分",
+        "单采血浆站技术操作规程(2022 年版) - 第81部分",
+        "单采血浆站技术操作规程(2022 年版) - 第5部分",
+        "单采血浆站技术操作规程(2022 年版) - 第83部分",
+        "单采血浆站技术操作规程(2022 年版) - 第76部分"
+      ]
+    },
+    {
+      "id": "knowledge-002",
+      "query": "Rh阴性献血者有什么要求",
+      "category": "knowledge",
+      "tools_called": [
+        "load_skill",
+        "rag_search",
+        "run_command"
+      ],
+      "rag_calls": 1,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "根据《献血者健康检查要求》及血液行业相关规程，Rh阴性（俗称“熊猫血”）献血者在健康征询和体检标准上**与Rh阳性献血者一致**，没有特殊的医学禁忌。Rh血型本身是一种遗传特征，而非疾病。\n\n以下是具体的要求和注意事项：\n\n### 1. 基本健康标准\nRh阴性献血者必须完全符合国家标准《献血者健康检查要求》，主要包括：\n*   **年龄**：18周岁至55周岁（既往无献血反应、符合健康检查要求的多次献血者主动要求再次献血的，年龄可延长至60周岁）。\n*   **体重**：男性≥50千克，女性≥45千克。\n*   **一般检查**：血压、脉搏、体温正常，无严重贫血或营养不良。\n*   **实验室",
+      "sources": [
+        "血液行业知识\u000b（2023版） - 第14部分",
+        "单采血浆站技术操作规程(2022 年版) - 第12部分",
+        "《中华人民共和国献血法》(1997) - 第3部分"
+      ]
+    },
+    {
+      "id": "knowledge-003",
+      "query": "国家提倡什么年龄的人献血",
+      "category": "knowledge",
+      "tools_called": [
+        "rag_search"
+      ],
+      "rag_calls": 1,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "根据《中华人民共和国献血法》及《血站技术操作规程》的规定：\n\n**国家提倡的献血年龄为：18 周岁 ～ 55 周岁。**\n\n此外，对于**多次献血者**还有以下延长规定：\n*   如果既往无献血反应、符合健康检查要求，且主动要求再次献血的，年龄可延长至 **60 周岁**。\n\n**温馨提示：**\n具体能否献血，还需结合献血者的身体状况，以现场健康征询和医师的最终判定为准。",
+      "sources": [
+        "血液行业规范和标准的解读\u000b（2020版） - 第5部分",
+        "《中华人民共和国献血法》(1997) - 第1部分",
+        "血液行业知识\u000b（2023版） - 第15部分"
+      ]
+    },
+    {
+      "id": "knowledge-004",
+      "query": "医院联网发血流程是怎样的",
+      "category": "knowledge",
+      "tools_called": [
+        "load_skill",
+        "rag_search"
+      ],
+      "rag_calls": 1,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "根据知识库中的《医院联网介绍》资料，医院联网发血流程旨在实现“血管到血管”的全程追溯和全市血液信息的实时共享。以下是具体的业务流程说明：\n\n### 【简要结论】\n医院联网发血是通过**城市医院用血实时联网平台**，将医院的临床用血需求与血站的库存、制备、配送环节实时打通。流程涵盖**在线预订、发血配送、临床使用反馈、血液退回及医院间调拨**等核心环节，确保血液安全可追溯并促进合理用血。\n\n### 【详细说明】\n\n#### 1. 总体架构\n*   **连接对象**：连接全市各医院（输血科）与血站。\n*   **核心理念**：“血管到血管”（Vein to Vein），即从献血者采血到患者输注的全",
+      "sources": [
+        "医院联网介绍 - 第6部分",
+        "医院联网介绍 - 第1部分",
+        "医院联网介绍 - 第5部分",
+        "医院联网介绍 - 第4部分",
+        "血液行业知识\u000b（2023版） - 第24部分"
+      ]
+    },
+    {
+      "id": "knowledge-005",
+      "query": "什么是熊猫血",
+      "category": "knowledge",
+      "tools_called": [
+        "load_skill",
+        "rag_search"
+      ],
+      "rag_calls": 1,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "## 什么是\"熊猫血\"？\n\n**简要结论：**  \n\"熊猫血\"是民间对 **Rh 阴性血**的俗称，因这种血型在中国人群中非常稀有（约占 0.3%～0.4%），如同国宝大熊猫一样珍贵而得名。\n\n---\n\n### 【详细说明】\n\n#### 1. 血型分类基础\n- 人类最常见的血型系统是 **ABO 血型系统**，分为 A、B、AB、O 四种血型。\n- 另一个重要的血型系统是 **Rh 血型系统**，分为 **Rh 阴性（-）** 和 **Rh 阳性（+）** 两类。\n\n#### 2. 为什么叫\"熊猫血\"？\n- 中国汉族人群中，**Rh 阴性血的比例仅约 0.3%～0.4%**，绝大多数人都是 R",
+      "sources": [
+        "血液行业知识\u000b（2023版） - 第14部分",
+        "《全血及成分血质量要求》GB18469-2012 - 第13部分",
+        "《全血及成分血质量要求》GB18469-2012 - 第15部分"
+      ]
+    },
+    {
+      "id": "alert-001",
+      "query": "帮我查一下临期血浆",
+      "category": "alert",
+      "tools_called": [
+        "check_plasma_expiry"
+      ],
+      "rag_calls": 0,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "您好！根据系统数据，截至今天（2026-07-01），**临期血浆预警**情况如下：\n\n📊 **临期血浆分布：**\n*   **上饶站**：1 袋\n*   **宜春站**：2 袋\n\n💡 **建议：**\n目前共有 3 袋血浆即将到期。建议您及时安排回访计划，联系相关献浆员确认去向或处理方案，避免血浆过期造成浪费。如有需要，我可以协助您生成具体的回访任务表。",
+      "sources": []
+    },
+    {
+      "id": "alert-002",
+      "query": "有哪些血浆快过期了",
+      "category": "alert",
+      "tools_called": [
+        "check_plasma_expiry",
+        "read_file"
+      ],
+      "rag_calls": 0,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "根据系统检查，目前有 **3 袋血浆** 处于临期状态，分布情况如下：\n\n| 站点 | 临期血浆数量 |\n|------|-------------|\n| 上饶 | 1 袋 |\n| 宜春 | 2 袋 |\n\n> ⚠️ **提醒**：您的预警阈值为 **90天**，以上血浆已接近有效期，请及时处理以避免浪费。\n\n**建议措施：**\n1. **联系献浆员**：尽快通知相关献浆员，安排回访或确认是否继续使用。\n2. **查看明细**：可打开 `data/bag_info.csv` 查看具体袋号、采浆日期和到期日等详细信息。\n3. **优先处理**：宜春站点有2袋，数量较多，建议优先跟进。\n\n如需我帮您",
+      "sources": []
+    },
+    {
+      "id": "report-001",
+      "query": "生成2025-06-18采血日报",
+      "category": "report",
+      "tools_called": [
+        "generate_blood_report",
+        "read_file"
+      ],
+      "rag_calls": 0,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "# 📊 中心血站2025-06-18 采血日报\n\n---\n\n## 一、总体概况\n\n| 指标 | 数值 |\n|------|------|\n| **总人次** | 308 |\n| **合格人次** | 291 |\n| **淘汰率** | 5.5% |\n| **采集量** | 131,500 ml |\n\n---\n\n## 二、各站点统计\n\n| 站点 | 人次 | 合格 | 淘汰率 | 采集量(ml) |\n|------|------|------|--------|------------|\n| 中心血站 | 163 | 154 | 5.5% | 48,400 |\n| 城东献血屋 | 56 | 52",
+      "sources": []
+    },
+    {
+      "id": "report-002",
+      "query": "帮我出一份献浆日报",
+      "category": "report",
+      "tools_called": [
+        "generate_blood_report"
+      ],
+      "rag_calls": 0,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "您好！我尝试生成 **2026-07-01** 的献浆日报，但发现对应的数据文件 `data/daily_collection_2026-07-01.csv` 不存在。\n\n可能的原因：\n1. **今日数据尚未录入** — 采血/献浆数据可能需要当天结束后才汇总\n2. **日期有误** — 您可能需要查询其他日期的数据\n\n请您确认：\n- ✅ 需要生成哪一天的献浆日报？（格式：YYYY-MM-DD）\n- ✅ 或者提供具体的 CSV 文件路径\n\n如果您有历史数据文件，也可以告诉我文件名，我可以直接为您生成报告。",
+      "sources": []
+    },
+    {
+      "id": "chitchat-001",
+      "query": "你好",
+      "category": "chitchat",
+      "tools_called": [],
+      "rag_calls": 0,
+      "tool_ok": true,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": true,
+      "reply_preview": "你好！我是血站智能助手「小杜」🩸\n\n我可以为你提供以下帮助：\n- 📚 **业务知识问答**：献血征询、采供血规程、血型检验标准、医院联网等\n- 📊 **报表生成**：采血/献浆日报、周报（支持 CSV 数据自动生成）\n- ⏰ **临期血浆预警**：检查即将过期的血浆批次，提醒及时处理\n- 📖 **规程解读**：检索血站业务知识库，解答操作规范问题\n\n请问有什么可以帮你的？",
+      "sources": []
+    },
+    {
+      "id": "negative-001",
+      "query": "量子计算机怎么造",
+      "category": "negative",
+      "tools_called": [],
+      "rag_calls": 0,
+      "tool_ok": false,
+      "forbidden_hit": false,
+      "over_rag": false,
+      "must_ok": true,
+      "passed": false,
+      "reply_preview": "制造一台量子计算机是目前人类最复杂的工程挑战之一，它不是像组装电脑那样简单拼接零件，而是涉及物理学、材料科学、微电子学和低温工程的深度结合。\n\n简单来说，造量子计算机主要分为三个核心部分：**量子比特（芯片）**、**极低温环境**和**控制系统**。\n\n以下是具体的制造逻辑和主流路线：\n\n### 1. 选择“量子比特”的物理实现路线\n这是最关键的一步，决定了整台机器的形态。目前主要有以下几种主流方案：\n\n*   **超导量子（Superconducting Qubits）**：\n    *   **代表厂商**：IBM、Google、中国科大（本源量子）。\n    *   **怎么造**：类",
+      "sources": []
+    }
+  ]
+}

@@ -5,6 +5,14 @@ __pycache__/
 *.pyo
 .DS_Store
 
+# IDE配置
+.idea/
+.qoder/
+.cursor/
+
+# 压缩包
+*.zip
+
 # 运行期产生的私人数据（含用户档案 / 会话历史 / token 用量）
 memory/
 .team/

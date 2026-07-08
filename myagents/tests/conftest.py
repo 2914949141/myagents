@@ -1,13 +1,5 @@
 import json
 from types import SimpleNamespace
-from pathlib import Path
-import sys
-
-
-# 把claude-agent_examples 加入到sys.path
-ROOT = Path(__file__).resolve().parent.parent.parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 
 
 def make_tool_call(name: str, arguments: dict):
@@ -16,6 +8,12 @@ def make_tool_call(name: str, arguments: dict):
         id="test-call-1",
         function=SimpleNamespace(
             name=name,
-            arguments=json.dumps(arguments, ensure_ascii=False)
+            arguments=json.dumps(arguments, ensure_ascii=False),
         ),
-       )
+    )
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "integration: 需要网络和 .env 配置的集成测试"
+    )

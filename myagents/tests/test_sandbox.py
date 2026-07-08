@@ -1,6 +1,6 @@
-import pytest
-from myagents.config import PROJECT_ROOT
-from myagents.utils.sandbox import is_path_allowed, validate_command
+﻿import pytest
+from agent_hemo.settings import PROJECT_ROOT
+from agent_hemo.utils.sandbox import is_path_allowed, validate_command
 
 class TestIsPathAllowed:
     def test_allow_inside_project(self):

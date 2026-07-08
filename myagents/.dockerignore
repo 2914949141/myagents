@@ -1,0 +1,18 @@
+# 虚拟环境（很大，不需要）
+.venv/
+venv/
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+# Git
+.git/
+.gitignore
+# 密钥不进镜像
+.env
+# IDE
+.vscode/
+.idea/
+# 日志（运行时生成）
+logs/

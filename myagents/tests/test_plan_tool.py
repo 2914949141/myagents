@@ -1,5 +1,5 @@
-from myagents.tests.conftest import make_tool_call
-from myagents.tools.plan_tool import PlanTool
+﻿from tests.conftest import make_tool_call
+from agent_hemo.tools.plan_tool import PlanTool
 import pytest
 
 @pytest.fixture(autouse=True)

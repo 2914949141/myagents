@@ -1,5 +1,16 @@
 .env
-logs/
+.venv/
 __pycache__/
 .pytest_cache/
-memory/memory/history.jsonl
+*.egg-info/
+
+# Runtime data
+logs/
+data/memory/
+data/reports/
+data/rag_index/
+data/workflow_checkpoints.sqlite
+
+# IDE
+.cursor/
+.idea/
