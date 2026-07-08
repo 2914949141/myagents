@@ -1,0 +1,1 @@
+"""将 MyAgents 工具通过 MCP 暴露给 Cursor 等客户端。"""

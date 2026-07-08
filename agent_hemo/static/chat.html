@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <title>血站助手流式测试</title>
+</head>
+<body>
+  <input id="msg" value="献浆间隔多久？" style="width:60%" />
+  <button onclick="send()">发送</button>
+  <pre id="out"></pre>
+  <script>
+    let sessionId = null;
+    async function send() {
+      const out = document.getElementById('out');
+      out.textContent = '';
+      const res = await fetch('/chat/stream', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message: document.getElementById('msg').value, session_id: sessionId })
+      });
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value);
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const evt = JSON.parse(line.slice(6));
+          if (evt.type === 'session') sessionId = evt.session_id;
+          if (evt.type === 'token') out.textContent += evt.content;
+          if (evt.type === 'status') out.textContent += '\n[' + evt.content + ']\n';
+          if (evt.type === 'done') out.textContent += '\n\n来源: ' + (evt.sources || []).join(', ');
+        }
+      }
+    }
+  </script>
+</body>
+</html>

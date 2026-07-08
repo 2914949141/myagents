@@ -1,0 +1,11 @@
+{"id":"knowledge-001","query":"献浆间隔多久可以再次献浆？","category":"knowledge","expected_tools":["rag_search"],"forbidden_tools":["check_plasma_expiry","generate_blood_report"],"must_include_any":["14"],"max_rag_calls":2}
+{"id":"knowledge-002","query":"Rh阴性献血者有什么要求","category":"knowledge","expected_tools":["rag_search"],"forbidden_tools":["generate_blood_report"],"max_rag_calls":2}
+{"id":"knowledge-003","query":"国家提倡什么年龄的人献血","category":"knowledge","expected_tools":["rag_search"],"forbidden_tools":["check_plasma_expiry"],"must_include_any":["18"],"max_rag_calls":2}
+{"id":"knowledge-004","query":"医院联网发血流程是怎样的","category":"knowledge","expected_tools":["rag_search"],"forbidden_tools":["generate_blood_report"],"max_rag_calls":2}
+{"id":"knowledge-005","query":"什么是熊猫血","category":"knowledge","expected_tools":["rag_search"],"forbidden_tools":["generate_blood_report"],"max_rag_calls":2}
+{"id":"alert-001","query":"帮我查一下临期血浆","category":"alert","expected_tools":["check_plasma_expiry"],"forbidden_tools":["rag_search"],"max_rag_calls":0}
+{"id":"alert-002","query":"有哪些血浆快过期了","category":"alert","expected_tools":["check_plasma_expiry"],"forbidden_tools":["rag_search"],"max_rag_calls":0}
+{"id":"report-001","query":"生成2025-06-18采血日报","category":"report","expected_tools":["generate_blood_report"],"forbidden_tools":["rag_search"],"max_rag_calls":0}
+{"id":"report-002","query":"帮我出一份献浆日报","category":"report","expected_tools":["generate_blood_report"],"forbidden_tools":["rag_search"],"max_rag_calls":0}
+{"id":"chitchat-001","query":"你好","category":"chitchat","expected_tools":[],"forbidden_tools":["rag_search","check_plasma_expiry","generate_blood_report"],"max_rag_calls":0}
+{"id":"negative-001","query":"量子计算机怎么造","category":"negative","expected_tools":[],"forbidden_tools":["rag_search"],"max_rag_calls":2}
